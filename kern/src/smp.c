@@ -94,6 +94,15 @@ void smp_idle(void)
 	__reset_stack_pointer(0, get_stack_top(), __smp_idle);
 }
 
+static void init_pcpu_tchains(void)
+{
+	char *name = kmalloc(KNAMELEN, MEM_WAIT);
+
+	/* akaros snprintf enforces null termination */
+	snprintf(name, KNAMELEN, "tchain-%d", core_id());
+	init_timer_chain(&this_pcpui_var(tchain), name, set_pcpu_alarm_interrupt);
+}
+
 /* Arch-independent per-cpu initialization.  This will call the arch dependent
  * init first. */
 void smp_percpu_init(void)
@@ -120,8 +129,7 @@ void smp_percpu_init(void)
 	STAILQ_INIT(&per_cpu_info[coreid].immed_amsgs);
 	spinlock_init_irqsave(&per_cpu_info[coreid].routine_amsg_lock);
 	STAILQ_INIT(&per_cpu_info[coreid].routine_amsgs);
-	/* Initialize the per-core timer chain */
-	init_timer_chain(&per_cpu_info[coreid].tchain, set_pcpu_alarm_interrupt);
+	init_pcpu_tchains();
 	/* Init generic tracing ring */
 	trace_buf = kpage_alloc_addr();
 	assert(trace_buf);

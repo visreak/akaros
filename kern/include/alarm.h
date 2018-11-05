@@ -72,9 +72,6 @@ struct alarm_waiter {
 	void						*data;
 	TAILQ_ENTRY(alarm_waiter)	next;
 	bool						on_tchain;
-	bool						is_running;
-	bool						no_rearm;
-	struct cond_var				done_cv;
 };
 TAILQ_HEAD(awaiters_tailq, alarm_waiter);		/* ideally not a LL */
 
@@ -86,13 +83,15 @@ typedef void (*alarm_handler)(struct alarm_waiter *waiter);
 struct timer_chain {
 	spinlock_t					lock;
 	struct awaiters_tailq		waiters;
+	struct alarm_waiter			*running;
 	uint64_t					earliest_time;
 	uint64_t					latest_time;
+	struct cond_var				cv;
 	void (*set_interrupt)(struct timer_chain *);
 };
 
 /* Called once per timer chain, currently in per_cpu_init() */
-void init_timer_chain(struct timer_chain *tchain,
+void init_timer_chain(struct timer_chain *tchain, char *name,
                       void (*set_interrupt)(struct timer_chain *));
 /* For fresh alarm waiters.  func == 0 for kthreads */
 void init_awaiter(struct alarm_waiter *waiter,
